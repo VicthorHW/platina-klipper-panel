@@ -33,7 +33,7 @@ Follow the instructions below to configure your panel. Each command must be exec
 ### 1. Clone the Repository
 Download the necessary files to your scripts directory:
 ```bash
-git clone [https://github.com/VicthorHW/platina-klipper-panel.git](https://github.com/VicthorHW/platina-klipper-panel.git) ~/scripts_vnc
+git clone https://github.com/VicthorHW/platina-klipper-panel.git ~/scripts_vnc
 ```
 
 ### 2. Assign Execution Permissions
@@ -64,7 +64,7 @@ To allow updates for this panel directly through the Mainsail or Fluidd interfac
 [update_manager setup_android_vnc]
 type: git_repo
 path: ~/scripts_vnc
-origin: [https://github.com/VicthorHW/platina-klipper-panel.git](https://github.com/VicthorHW/platina-klipper-panel.git)
+origin: https://github.com/VicthorHW/platina-klipper-panel.git
 primary_branch: main
 managed_services: klipper
 ```
