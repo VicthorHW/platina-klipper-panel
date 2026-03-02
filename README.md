@@ -1,92 +1,83 @@
 # Platina Klipper Panel 🚀
 
-Solução técnica para implementação de interface de monitoramento dedicada para o Klipper, utilizando um dispositivo Android conectado via túnel de dados ADB (USB).
+Technical solution for Klipper monitoring via Android connected through an ADB data tunnel (USB). This configuration eliminates latency and ensures the screen functions as a high-performance native panel.
 
-## 📍 Sumário
-* [Visão Geral](#-visão-geral)
-* [Diferenciais Técnicos](#-diferenciais-técnicos)
-* [Requisitos de Hardware](#-requisitos-de-hardware)
-* [Instalação no Host (Orange Pi/SBC)](#-instalação-no-host-orange-pisbc)
-* [Configuração do Android](#-configuração-do-android)
-* [Configuração do Moonraker (Update Manager)](#️-configuração-do-moonraker-update-manager)
-* [Proteção de Tela (Anti-Burn-in)](#-proteção-de-tela-anti-burn-in)
-* [Estrutura de Arquivos](#-estrutura-de-arquivos)
-* [Licença](#-licença)
+## 📍 Table of Contents
+* [Overview](#-overview)
+* [Technical Highlights](#-technical-highlights)
+* [Critical Requirement: USB Connection](#-critical-requirement-usb-connection)
+* [Installation Step-by-Step](#-installation-step-by-step)
+* [Android Finalization](#-android-finalization)
+* [Moonraker Configuration (Update Manager)](#️-moonraker-configuration-update-manager)
+* [File Structure](#-file-structure)
+* [License](#-license)
 
 ---
 
-## 🔍 Visão Geral
-O Platina Klipper Panel elimina a latência e a instabilidade inerentes às conexões Wi-Fi ao encapsular o tráfego VNC através do barramento USB. Utilizando a técnica de *ADB Forwarding*, o Host estabelece uma comunicação direta com o Android via `127.0.0.1`, permitindo que o dispositivo atue como uma tela de alta fidelidade para a impressora enquanto é alimentado pelo próprio Host.
+## 🔍 Overview
+The project utilizes the USB bus to transmit VNC data directly to the Android device. This avoids Wi-Fi drops and allows the Host (Orange Pi/SBC) to automatically control the phone's screen state and brightness.
 
-## 🛠 Diferenciais Técnicos
-* **Conectividade Low-Latency:** Tunelamento TCP via barramento USB.
-* **Integração Nativa:** Automação via regras `udev` para detecção imediata de hardware.
-* **Gestão de Ciclo de Vida:** Gerenciamento de brilho via software para preservação do painel.
-* **Setup Automatizado:** Scripts para transferência rápida de *assets* e macros.
+## 🛠 Technical Highlights
+* **Zero Latency:** Direct TCP tunneling via USB cable.
+* **Screen Automation:** The system detects the connection and launches the interface automatically.
+* **Panel Preservation:** Brightness control logic and sleep mode to prevent screen burn-in.
 
-## 🔌 Requisitos de Hardware
-* **Host:** Orange Pi Zero 3 (ou qualquer SBC compatível com Linux).
-* **Display:** Dispositivo Android (com Depuração USB habilitada).
-* **Conexão:** Cabo USB de alta qualidade (suporte a dados e carregamento).
+## 🔌 Critical Requirement: USB Connection
+> **IMPORTANT:** The Android device must be connected to the Host via USB during the installation process.
 
-## 💻 Instalação no Host (Orange Pi/SBC)
-Siga os passos abaixo para configurar o ambiente no Linux:
+**Why is this necessary?** The installation script uses the ADB protocol to "push" the automation macro and the brightness control script directly to the phone's internal memory (`Download` folder). Without a physical connection and active USB Debugging, the installer will configure the Linux system but will fail to prepare the phone for use.
 
+## 💻 Installation Step-by-Step
+Follow the instructions below to configure your panel. Each command must be executed sequentially in your Host's terminal.
+
+### 1. Clone the Repository
+Download the necessary files to your scripts directory:
 ```bash
-# 1. Clonar o repositório
 git clone [https://github.com/VicthorHW/platina-klipper-panel.git](https://github.com/VicthorHW/platina-klipper-panel.git) ~/scripts_vnc
-
-# 2. Acessar o diretório e atribuir permissões
-cd ~/scripts_vnc
-chmod +x install.sh install_assets.sh
-
-# 3. Executar o instalador do sistema
-sudo ./install.sh
 ```
 
-## 📱 Configuração do Android
-Para facilitar a automação, o repositório inclui um script que envia a macro e o script de controle diretamente para o dispositivo.
-
-1. Conecte o Android ao Host via USB.
-2. Execute o script de *assets*:
+### 2. Assign Execution Permissions
+Make the master installer executable so it can perform system changes:
 ```bash
-./install_assets.sh
+cd ~/scripts_vnc && chmod +x install.sh
 ```
-3. No Android, abra o **MacroDroid**.
-4. Vá em **Importar/Exportar -> Importar** e selecione o arquivo `MacroDroid_Macros.mdr` que agora está na sua pasta *Download*.
-5. O script `ligar_vnc.sh` também será copiado para a pasta *Download* e deve ser configurado como uma ação de "Shell Script" (com acesso Root) dentro da macro.
 
-## ⚙️ Configuração do Moonraker (Update Manager)
-Adicione o seguinte bloco ao seu arquivo `moonraker.conf` para receber atualizações automáticas:
+### 3. Run the Master Installation
+Ensure the phone is plugged in. The command below will configure the USB detection rules and send the automation files to the Android device:
+```bash
+./install.sh
+```
+
+## 📱 Android Finalization
+After the script finishes on the Host, the files will already be on your phone. Follow these steps to activate the automation:
+
+1. Open the **MacroDroid** app.
+2. Tap the **Import/Export** option and select **Import**.
+3. Navigate to your phone's `Download` folder.
+4. Select the `MacroDroid_Macros.mdr` file.
+5. The imported macro will use the `ligar_vnc.sh` script (also sent to the `Download` folder) to manage the connection and brightness automatically.
+
+## ⚙️ Moonraker Configuration (Update Manager)
+To allow updates for this panel directly through the Mainsail or Fluidd interface, add the following block to your `moonraker.conf` file:
 
 ```ini
 [update_manager setup_android_vnc]
 type: git_repo
 path: ~/scripts_vnc
-origin: https://github.com/VicthorHW/platina-klipper-panel.git
+origin: [https://github.com/VicthorHW/platina-klipper-panel.git](https://github.com/VicthorHW/platina-klipper-panel.git)
 primary_branch: main
 managed_services: klipper
 ```
 
-## 💡 Proteção de Tela (Anti-Burn-in)
-A lógica de proteção de painel implementada no script:
+## 📂 File Structure
 
-| Tempo | Ação | Nível de Brilho |
-| :--- | :--- | :--- |
-| **00:00** | Início do VNC (Localhost) | 200 (80%) |
-| **10:00 min** | Ativação do *Dimming* | 12 (5%) |
-| **20:00 min** | Display Sleep | Off (Deep Sleep) |
-
-## 📂 Estrutura de Arquivos
-
-| Arquivo | Função Técnica |
+| File | Technical Function |
 | :--- | :--- |
-| `install.sh` | Instalador mestre e configuração de dependências de sistema. |
-| `install_assets.sh` | Automação de transferência de arquivos (Macro/Scripts) para o Android. |
-| `setup_adb_forward.sh` | Manutenção do túnel TCP via USB no Host. |
-| `99-android-adb.rules` | Regra `udev` para automação via Vendor ID (Android 2717). |
-| `ligar_vnc.sh` | Lógica de proteção e inicialização enviada ao Android. |
-| `MacroDroid_Macros/` | Pasta contendo a macro `.mdr` pronta para importação. |
+| `install.sh` | Unified installer (Configures Host and transfers files to Android). |
+| `setup_adb_forward.sh` | Maintains the active TCP tunnel over the Host's USB bus. |
+| `99-android-adb.rules` | UDEV rule for automatic Android device detection. |
+| `ligar_vnc.sh` | Brightness control and screen protection script (runs on Android). |
+| `MacroDroid_Macros/` | Folder containing the macro ready for MacroDroid import. |
 
-## 📄 Licença
-Distribuído sob a licença MIT.
+## 📄 License
+Distributed under the MIT License. Feel free to modify and distribute.
