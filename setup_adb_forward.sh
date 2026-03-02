@@ -1,25 +1,49 @@
 #!/bin/bash
-# File: setup_adb_forward.sh
+# Ficheiro: setup_adb_forward.sh
+# Este script agora é otimizado para rodar via systemd service
 
-# Logs the execution attempt
-echo "UDEV triggered ADB script at $(date)" >> /tmp/klipper_vnc.log
+LOG_FILE="/tmp/klipper_vnc.log"
 
-# Use absolute path for adb to avoid path issues with UDEV
+echo "------------------------------------------" >> $LOG_FILE
+echo "Serviço de Túnel iniciado em: $(date)" >> $LOG_FILE
+
 ADB_BIN="/usr/bin/adb"
+# Definimos o HOME para que o ADB encontre as chaves de autorização do utilizador pi
+export HOME="/home/pi"
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-# Start ADB server
-$ADB_BIN start-server
-
-# Wait for hardware stabilization
+# Hardware stabilization
 sleep 2
 
-# CRITICAL: We use 'reverse' because bVNC is on the phone 
-# looking for a server at its own 127.0.0.1:5900
-$ADB_BIN reverse --remove-all
-$ADB_BIN reverse tcp:5900 tcp:5900
+echo "Limpando túneis anteriores..." >> $LOG_FILE
+$ADB_BIN kill-server >> $LOG_FILE 2>&1
+$ADB_BIN start-server >> $LOG_FILE 2>&1
+
+echo "Aguardando detecção do dispositivo Android..." >> $LOG_FILE
+# Loop de 30 segundos para garantir a detecção durante o boot
+for i in {1..30}; do
+    if $ADB_BIN devices | grep -qw "device"; then
+        echo "Dispositivo detectado com sucesso após $i segundos!" >> $LOG_FILE
+        break
+    fi
+    
+    if [ $i -eq 30 ]; then
+        echo "TIMEOUT: Celular não ficou pronto para ADB." >> $LOG_FILE
+        exit 1
+    fi
+    sleep 1
+done
+
+echo "Configurando túnel reverso (5900 -> 5900)..." >> $LOG_FILE
+$ADB_BIN reverse --remove-all >> $LOG_FILE 2>&1
+$ADB_BIN reverse tcp:5900 tcp:5900 >> $LOG_FILE 2>&1
 
 if [ $? -eq 0 ]; then
-    echo "SUCCESS: ADB Reverse Tunnel TCP:5900 established" >> /tmp/klipper_vnc.log
+    echo "SUCESSO: Túnel estabelecido. bVNC pronto para conectar em 127.0.0.1" >> $LOG_FILE
+    $ADB_BIN reverse --list >> $LOG_FILE
 else
-    echo "ERROR: Failed to establish ADB tunnel" >> /tmp/klipper_vnc.log
+    echo "ERRO: Falha crítica ao configurar reverse tunnel." >> $LOG_FILE
 fi
+
+echo "Serviço finalizado em: $(date)" >> $LOG_FILE
+echo "------------------------------------------" >> $LOG_FILE
