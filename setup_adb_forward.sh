@@ -1,18 +1,25 @@
 #!/bin/bash
 # File: setup_adb_forward.sh
 
-# Manages port forwarding for VNC via ADB
-# This script is called automatically by the UDEV rule
+# Logs the execution attempt
+echo "UDEV triggered ADB script at $(date)" >> /tmp/klipper_vnc.log
 
-# Start ADB server if not running
-adb start-server
+# Use absolute path for adb to avoid path issues with UDEV
+ADB_BIN="/usr/bin/adb"
+
+# Start ADB server
+$ADB_BIN start-server
 
 # Wait for hardware stabilization
 sleep 2
 
-# Clear old forwards and define the new tunnel
-# Maps port 5900 (VNC) from Android to Orange Pi's Localhost
-adb forward --remove-all
-adb forward tcp:5900 tcp:5900
+# CRITICAL: We use 'reverse' because bVNC is on the phone 
+# looking for a server at its own 127.0.0.1:5900
+$ADB_BIN reverse --remove-all
+$ADB_BIN reverse tcp:5900 tcp:5900
 
-echo "ADB Forwarding Tunnel TCP:5900 established at $(date)" >> /tmp/klipper_vnc.log
+if [ $? -eq 0 ]; then
+    echo "SUCCESS: ADB Reverse Tunnel TCP:5900 established" >> /tmp/klipper_vnc.log
+else
+    echo "ERROR: Failed to establish ADB tunnel" >> /tmp/klipper_vnc.log
+fi
